@@ -143,7 +143,7 @@ def create_spotify_Oauth():
     return SpotifyOAuth(
         client_id="d05e844b98594009899fd6e3d355455f",
         client_secret="24d00a7095be4fa29f05c52fe58bb061",
-        redirect_uri = url_for('authorize', _external=False),
+        redirect_uri = url_for('authorize', _external=True),
         scope="user-library-read",
     )
 
