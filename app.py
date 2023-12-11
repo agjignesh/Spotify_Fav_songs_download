@@ -48,7 +48,8 @@ def songs():
         return redirect(url_for("login"))
     
     sp = spotipy.Spotify(access_token)
-    
+
+    all_songs.clear()
     
     i = 0
     while True:
