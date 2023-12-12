@@ -1,14 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, session, send_file
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from moviepy.editor import *
 import time
-import eyed3
-import pytube
 from pytube import YouTube
 from pytube import Search
 import os
 import shutil
+import music_tag
 
 
 app = Flask(__name__)
@@ -48,8 +46,7 @@ def songs():
         return redirect(url_for("login"))
     
     sp = spotipy.Spotify(access_token)
-
-    all_songs.clear()
+    
     
     i = 0
     while True:
@@ -71,18 +68,24 @@ def downloading():
     return download_song(all_songs)
 
 
-def MP4ToMP3(mp4, mp3):
-    FILETOCONVERT = AudioFileClip(mp4)
-    FILETOCONVERT.write_audiofile(mp3)
-    FILETOCONVERT.close()
+# def MP4ToMP3(mp4, mp3):
+#     FILETOCONVERT = AudioFileClip(mp4)
+#     FILETOCONVERT.write_audiofile(mp3)
+#     FILETOCONVERT.close()
 
 def add_metadata(mp3, song, artist, album, release_date):
-    audiofile = eyed3.load(mp3)
-    audiofile.tag.artist = artist
-    audiofile.tag.album = album
-    audiofile.tag.title = song
-    audiofile.tag.release_date = release_date
-    audiofile.tag.save()
+    file = music_tag.load_file(mp3)
+    file['title'] = song
+    file['artist'] = artist
+    file['album'] = album
+    file['year'] = release_date
+    file.save()
+    # audiofile = eyed3.load(mp3)
+    # audiofile.tag.artist = artist
+    # audiofile.tag.album = album
+    # audiofile.tag.title = song
+    # audiofile.tag.release_date = release_date
+    # audiofile.tag.save()
 
 def download_song(songs):
     # download all the songs in the list songs into a new folder songs
@@ -114,8 +117,7 @@ def download_song(songs):
                 ori_path = i.streams.get_audio_only().download()
                 new_path = ori_path[:-4] + '.mp3'
                 if not os.path.exists(new_path):
-                    MP4ToMP3(ori_path, new_path)
-                    os.remove(ori_path)
+                    os.rename(ori_path, new_path)
                     add_metadata(new_path, song, artist, album, date)
                 break
         else:
@@ -149,5 +151,5 @@ def create_spotify_Oauth():
     )
 
 
-# if __name__ == '__main__':
-#     app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
