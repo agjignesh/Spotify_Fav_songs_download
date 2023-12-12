@@ -1,6 +1,0 @@
-flask
-spotipy
-eyed3
-pytube
-Gunicorn
-moviepy
