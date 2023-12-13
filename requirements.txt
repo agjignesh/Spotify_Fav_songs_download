@@ -4,3 +4,4 @@ pytube
 Gunicorn
 eyed3
 moviepy
+music_tag
