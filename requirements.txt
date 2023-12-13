@@ -3,3 +3,5 @@ spotipy
 pytube
 Gunicorn
 music_tag
+eyed3
+moviepy
