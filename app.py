@@ -162,6 +162,8 @@ def download_song(songs):
     for song, duration, artist, album, date in songs:
         logging.info(f"Downloading {song} by {artist}")
 
+        download_status = (itr)*100//no_of_songs
+
         s = Search(f"{song} by {artist} song")
         for i in s.results:
             if(i.length>=duration-10 and i.length<=duration+10):
@@ -174,7 +176,6 @@ def download_song(songs):
         else:
             logging.warning(f"{song} not found")
         
-        download_status = (itr+1)*100//no_of_songs
         itr += 1
 
     # Change to base directory
@@ -189,6 +190,9 @@ def download_song(songs):
         shutil.rmtree('songs')
     else:
         return redirect(url_for("login", _external=True))
+    
+    download_status = 100
+    return False
 
 # if __name__ == '__main__':
 #     app.run(debug=True)
