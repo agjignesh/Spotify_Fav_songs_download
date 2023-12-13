@@ -19,8 +19,8 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 
 # Use environment variables for secrets
-app.secret_key = "spotify-login-session"
-app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
+app.secret_key = "asdfsdfer79847997974fdafadfa"
+app.config['SESSION_COOKIE_NAME'] = 'fdjsffdsjfa4urwe89eur89'
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # Use a constant for the token info session key
@@ -88,6 +88,9 @@ def remove_file_after_time(file_name, time_till = 400):
 def login():
     sp_oauth = create_spotify_Oauth()
     auth_url = sp_oauth.get_authorize_url()
+    session.clear()
+    if(os.path.exists('.cache')):
+        os.remove('.cache')
     return render_template('index.html', auth_url=auth_url)
 
 
@@ -125,14 +128,12 @@ def downloading():
     
     global download_status_dict, threads
 
-    if(user_id in threads):
-        return render_template('downloading.html', user_id=user_id)
-
     sp = spotipy.Spotify(access_token)
     songs_to_download = fetch_saved_tracks(sp)
     user_id = get_user_unique_id(sp)
 
-    
+    if(user_id in threads):
+        return render_template('downloading.html', user_id=user_id)
 
     download_status_dict[user_id] = 0
     threads[user_id] = Thread(target=download_song, args=(songs_to_download, user_id,))
