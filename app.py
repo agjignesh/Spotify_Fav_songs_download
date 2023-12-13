@@ -210,7 +210,7 @@ def download_song(songs, user_id):
 
         download_status_dict[user_id] = (itr)*100//no_of_songs
 
-        s = Search(f"{song} by {artist} song", )
+        s = Search(f"{song} by {artist} song")
         for i in s.results:
             if(i.length>=duration-10 and i.length<=duration+10):
                 ori_path = i.streams.get_audio_only().download(os.path.join(os.getcwd(), f"songs{user_id}"))
