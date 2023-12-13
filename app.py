@@ -123,7 +123,7 @@ def downloading():
     t = Thread(target=download_song, args=(songs_to_download,))
     t.start()
     session.clear()
-    
+
     return render_template('downloading.html')
 
 # Status route
@@ -135,15 +135,6 @@ def getStatus():
 # Downloaded route
 @app.route('/downloaded')
 def downloaded():
-    if os.path.exists('songs.zip'):
-        os.remove('songs.zip')    
-
-    if os.path.exists('songs'):
-        shutil.make_archive('songs', 'zip', 'songs')
-        shutil.rmtree('songs')
-    else:
-        return redirect(url_for("login", _external=True))
-    
     session.clear()
     return send_file('songs.zip', as_attachment=True)
 
@@ -186,7 +177,18 @@ def download_song(songs):
         download_status = (itr+1)*100//no_of_songs
         itr += 1
 
-    os.chdir("..")
+    # Change to base directory
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(base_dir)
+
+    if os.path.exists('songs.zip'):
+        os.remove('songs.zip')    
+
+    if os.path.exists('songs'):
+        shutil.make_archive('songs', 'zip', 'songs')
+        shutil.rmtree('songs')
+    else:
+        return redirect(url_for("login", _external=True))
 
 # if __name__ == '__main__':
 #     app.run(debug=True)
