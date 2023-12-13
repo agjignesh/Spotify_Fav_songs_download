@@ -9,6 +9,8 @@ import music_tag
 from threading import Thread
 import json
 import logging
+from moviepy.editor import *
+import eyed3
 
 
 # Set up logging
@@ -138,14 +140,22 @@ def downloaded():
     session.clear()
     return send_file('songs.zip', as_attachment=True)
 
+
+def MP4ToMP3(mp4, mp3):
+    FILETOCONVERT = AudioFileClip(mp4)
+    FILETOCONVERT.write_audiofile(mp3)
+    FILETOCONVERT.close()
+
 # Add metadata to song
 def add_metadata(mp3, song, artist, album, release_date):
-    file = music_tag.load_file(mp3)
-    file['title'] = song
-    file['artist'] = artist
-    file['album'] = album
-    file['year'] = release_date
-    file.save()
+    audiofile = eyed3.load(mp3)
+    audiofile.tag.artist = artist
+    audiofile.tag.album = album
+    audiofile.tag.title = song
+    year = release_date[:4] if isinstance(release_date, str) and len(release_date) >= 4 else release_date
+    audiofile.tag.release_date = year
+    audiofile.tag.save()
+
 
 # Download song
 def download_song(songs):
@@ -155,7 +165,6 @@ def download_song(songs):
     
     os.chdir("songs")
 
-    start_time = time.time()
     no_of_songs = len(songs)
     itr = 0
 
@@ -170,7 +179,8 @@ def download_song(songs):
                 ori_path = i.streams.get_audio_only().download()
                 new_path = ori_path[:-4] + '.mp3'
                 if not os.path.exists(new_path):
-                    os.rename(ori_path, new_path)
+                    MP4ToMP3(ori_path, new_path)
+                    os.remove(ori_path)
                     add_metadata(new_path, song, artist, album, date)
                 break
         else:
