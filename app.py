@@ -11,7 +11,6 @@ import logging
 from moviepy.editor import *
 import eyed3
 
-logging.disable(logging.CRITICAL)
 
 time_till = 3000
 
@@ -180,7 +179,7 @@ def downloaded(user_id):
 
 def MP4ToMP3(mp4, mp3):
     FILETOCONVERT = AudioFileClip(mp4)
-    FILETOCONVERT.write_audiofile(mp3)
+    FILETOCONVERT.write_audiofile(mp3, verbose=False, logger=None)
     FILETOCONVERT.close()
 
 # Add metadata to song
@@ -211,7 +210,7 @@ def download_song(songs, user_id):
 
         download_status_dict[user_id] = (itr)*100//no_of_songs
 
-        s = Search(f"{song} by {artist} song")
+        s = Search(f"{song} by {artist} song", )
         for i in s.results:
             if(i.length>=duration-10 and i.length<=duration+10):
                 ori_path = i.streams.get_audio_only().download(os.path.join(os.getcwd(), f"songs{user_id}"))
@@ -240,5 +239,5 @@ def download_song(songs, user_id):
 
 
 
-# if __name__ == '__main__':
-#     app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
