@@ -10,6 +10,7 @@ import json
 import logging
 from moviepy.editor import *
 import eyed3
+import music_tag
 
 
 time_till = 3000
@@ -182,15 +183,24 @@ def MP4ToMP3(mp4, mp3):
     FILETOCONVERT.write_audiofile(mp3, verbose=False, logger=None)
     FILETOCONVERT.close()
 
-# Add metadata to song
+# # Add metadata to song
+# def add_metadata(mp3, song, artist, album, release_date):
+#     audiofile = eyed3.load(mp3)
+#     audiofile.tag.artist = artist
+#     audiofile.tag.album = album
+#     audiofile.tag.title = song
+#     year = release_date[:4] if isinstance(release_date, str) and len(release_date) >= 4 else release_date
+#     audiofile.tag.release_date = year
+#     audiofile.tag.save()
+
 def add_metadata(mp3, song, artist, album, release_date):
-    audiofile = eyed3.load(mp3)
-    audiofile.tag.artist = artist
-    audiofile.tag.album = album
-    audiofile.tag.title = song
+    audiofile = music_tag.load_file(mp3)
+    audiofile['title'] = song
+    audiofile['artist'] = artist
+    audiofile['album'] = album
     year = release_date[:4] if isinstance(release_date, str) and len(release_date) >= 4 else release_date
-    audiofile.tag.release_date = year
-    audiofile.tag.save()
+    audiofile['year'] = year
+    audiofile.save()
 
 
 
@@ -216,8 +226,7 @@ def download_song(songs, user_id):
                 ori_path = i.streams.get_audio_only().download(os.path.join(os.getcwd(), f"songs{user_id}"))
                 new_path = ori_path[:-4] + '.mp3'
                 if not os.path.exists(new_path):
-                    MP4ToMP3(ori_path, new_path)
-                    os.remove(ori_path)
+                    os.rename(ori_path, new_path)
                     add_metadata(new_path, song, artist, album, date)
                 break
         else:
