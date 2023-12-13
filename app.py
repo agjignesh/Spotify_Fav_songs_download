@@ -1,17 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, session
+from flask import Flask, render_template, request, redirect, url_for, send_file, session, after_this_request
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import time
 from pytube import Search
 import os
 import shutil
-import music_tag
 from threading import Thread
 import json
 import logging
 from moviepy.editor import *
 import eyed3
 
+time_till = 3000
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -21,12 +21,16 @@ app = Flask(__name__)
 # Use environment variables for secrets
 app.secret_key = "spotify-login-session"
 app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # Use a constant for the token info session key
 TOKEN_INFO_KEY = "token_info"
 
-# Initialize download status
-download_status = 0
+# Global Threads dict 
+threads = {}
+
+# Download_status dict
+download_status_dict = {}
 
 # Spotify OAuth
 def create_spotify_Oauth():
@@ -64,25 +68,28 @@ def fetch_saved_tracks(sp):
         i += 1
     return songs
 
+def convertToNumber (s):
+    a = str(int.from_bytes(s.encode(), 'little'))
+    return a[:2]+a[-4:]
+
+def get_user_unique_id(sp):
+    return convertToNumber(sp.current_user()['id'])
+
+def remove_file_after_time(file_name, time_till = 400):
+    """time is in seconds"""
+    time.sleep(time_till)
+    if os.path.exists(file_name):
+        os.remove(file_name)
+    logging.info(f"Removed {file_name}")
+
+
 # Login route
 @app.route('/')
 def login():
     sp_oauth = create_spotify_Oauth()
     auth_url = sp_oauth.get_authorize_url()
-
-    # Change to base directory
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(base_dir)
-    
-    # Clear cache and old songs
-    for path in ['.cache', 'songs.zip', 'songs']:
-        if os.path.exists(path):
-            if os.path.isfile(path):
-                os.remove(path)
-            else:
-                shutil.rmtree(path)
-    
     return render_template('index.html', auth_url=auth_url)
+
 
 # Authorize route
 @app.route('/authorize')
@@ -116,29 +123,56 @@ def downloading():
         logging.error(e)
         return redirect(url_for("login"))
     
+    global download_status_dict, threads
+
+    if(user_id in threads):
+        return render_template('downloading.html', user_id=user_id)
+
     sp = spotipy.Spotify(access_token)
     songs_to_download = fetch_saved_tracks(sp)
-    
-    global download_status
-    download_status = 0
-    
-    t = Thread(target=download_song, args=(songs_to_download,))
-    t.start()
-    session.clear()
+    user_id = get_user_unique_id(sp)
 
-    return render_template('downloading.html')
+    
+
+    download_status_dict[user_id] = 0
+    threads[user_id] = Thread(target=download_song, args=(songs_to_download, user_id,))
+    threads[user_id].start()
+
+    return render_template('downloading.html', user_id=user_id)
 
 # Status route
-@app.route('/status', methods=['GET'])
-def getStatus():
-  statusList = {'status': download_status}
+@app.route('/status/<user_id>', methods=['GET'])
+def getStatus(user_id):
+  global download_status_dict
+  logging.info(user_id)
+  statusList = {'status': download_status_dict[user_id]}
   return json.dumps(statusList)
 
 # Downloaded route
-@app.route('/downloaded')
-def downloaded():
-    session.clear()
-    return send_file('songs.zip', as_attachment=True)
+@app.route('/downloaded/<user_id>', methods=['GET'])
+def downloaded(user_id):
+
+    @after_this_request
+    def remove(response):
+        global download_status_dict, threads, remove_zip_files
+
+        session.clear()
+
+        if user_id in download_status_dict:
+            download_status_dict.pop(user_id)
+        if user_id in threads:
+            threads.pop(user_id)
+
+        if(os.path.exists('.cache')):
+            os.remove('.cache')
+
+        t = Thread(target=remove_file_after_time, args=(f'songs{user_id}.zip',time_till,))
+        t.start()
+
+        return response
+
+    return send_file(f'songs{user_id}.zip', as_attachment=True)
+
 
 
 def MP4ToMP3(mp4, mp3):
@@ -157,13 +191,14 @@ def add_metadata(mp3, song, artist, album, release_date):
     audiofile.tag.save()
 
 
+
 # Download song
-def download_song(songs):
-    global download_status
-    if not os.path.exists("songs"):
-        os.mkdir("songs")
-    
-    os.chdir("songs")
+def download_song(songs, user_id):
+
+    global download_status_dict
+
+    if not os.path.exists(f"songs{user_id}"):
+        os.mkdir(f"songs{user_id}")
 
     no_of_songs = len(songs)
     itr = 0
@@ -171,12 +206,12 @@ def download_song(songs):
     for song, duration, artist, album, date in songs:
         logging.info(f"Downloading {song} by {artist}")
 
-        download_status = (itr)*100//no_of_songs
+        download_status_dict[user_id] = (itr)*100//no_of_songs
 
         s = Search(f"{song} by {artist} song")
         for i in s.results:
             if(i.length>=duration-10 and i.length<=duration+10):
-                ori_path = i.streams.get_audio_only().download()
+                ori_path = i.streams.get_audio_only().download(os.path.join(os.getcwd(), f"songs{user_id}"))
                 new_path = ori_path[:-4] + '.mp3'
                 if not os.path.exists(new_path):
                     MP4ToMP3(ori_path, new_path)
@@ -188,21 +223,19 @@ def download_song(songs):
         
         itr += 1
 
-    # Change to base directory
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(base_dir)
+    if os.path.exists(f'songs{user_id}.zip'):
+        os.remove(f'songs{user_id}.zip')    
 
-    if os.path.exists('songs.zip'):
-        os.remove('songs.zip')    
-
-    if os.path.exists('songs'):
-        shutil.make_archive('songs', 'zip', 'songs')
-        shutil.rmtree('songs')
+    if os.path.exists(f'songs{user_id}'):
+        shutil.make_archive(f'songs{user_id}', 'zip', f'songs{user_id}')
+        shutil.rmtree(f'songs{user_id}')
     else:
         return redirect(url_for("login", _external=True))
     
-    download_status = 100
+    download_status_dict[user_id] = 100
     return False
+
+
 
 # if __name__ == '__main__':
 #     app.run(debug=True)
