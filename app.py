@@ -11,6 +11,8 @@ import logging
 from moviepy.editor import *
 import eyed3
 
+logging.disable(logging.CRITICAL)
+
 time_till = 3000
 
 # Set up logging
